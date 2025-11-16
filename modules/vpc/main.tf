@@ -1,9 +1,3 @@
-locals {
-  public_subnets   = zipmap(var.availability_zones, var.public_subnet_cidrs)
-  k8s_subnets      = zipmap(var.availability_zones, var.k8s_subnet_cidrs)
-  database_subnets = zipmap(var.availability_zones, var.database_subnet_cidrs)
-}
-
 resource "aws_vpc" "main" {
   cidr_block           = var.vpc_cidr
   enable_dns_support   = true
@@ -14,7 +8,7 @@ resource "aws_vpc" "main" {
 }
 
 resource "aws_subnet" "database" {
-  for_each          = local.database_subnets
+  for_each          = var.database_subnet_cidrs
   vpc_id            = aws_vpc.main.id
   cidr_block        = each.value
   availability_zone = each.key
@@ -24,7 +18,7 @@ resource "aws_subnet" "database" {
 }
 
 resource "aws_subnet" "k8s" {
-  for_each          = local.k8s_subnets
+  for_each          = var.k8s_subnet_cidrs
   vpc_id            = aws_vpc.main.id
   cidr_block        = each.value
   availability_zone = each.key
@@ -35,7 +29,7 @@ resource "aws_subnet" "k8s" {
 }
 
 resource "aws_subnet" "public" {
-  for_each                = local.public_subnets
+  for_each                = var.public_subnet_cidrs
   vpc_id                  = aws_vpc.main.id
   cidr_block              = each.value
   availability_zone       = each.key
@@ -72,7 +66,7 @@ resource "aws_route_table_association" "public" {
 }
 
 resource "aws_eip" "nat" {
-  for_each   = toset(var.availability_zones)
+  for_each   = var.public_subnet_cidrs
   depends_on = [aws_internet_gateway.main]
   tags = merge(var.tags, {
     Name = "nat-eip-${each.key}"
@@ -80,7 +74,7 @@ resource "aws_eip" "nat" {
 }
 
 resource "aws_nat_gateway" "main" {
-  for_each      = toset(var.availability_zones)
+  for_each      = var.public_subnet_cidrs
   allocation_id = aws_eip.nat[each.key].id
   subnet_id     = aws_subnet.public[each.key].id
   tags = merge(var.tags, {
@@ -89,7 +83,7 @@ resource "aws_nat_gateway" "main" {
 }
 
 resource "aws_route_table" "private" {
-  for_each = toset(var.availability_zones)
+  for_each = var.public_subnet_cidrs
   vpc_id   = aws_vpc.main.id
 
   route {

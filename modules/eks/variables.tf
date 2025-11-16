@@ -4,18 +4,13 @@ variable "vpc_id" {
 }
 
 variable "k8s_subnet_ids" {
-  description = "List of subnet IDs for the EKS cluster"
-  type        = list(string)
+  description = "Map of subnet IDs for the EKS cluster, keyed by AZ"
+  type        = map(string)
 }
 
 variable "cluster_name" {
   description = "Name of the EKS cluster"
   type        = string
-}
-
-variable "availability_zones" {
-  description = "List of availability zones for the node groups"
-  type        = list(string)
 }
 
 variable "cluster_sg_id" {

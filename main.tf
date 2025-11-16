@@ -5,7 +5,6 @@ module "vpc" {
   database_subnet_cidrs = var.database_subnet_cidrs
   k8s_subnet_cidrs      = var.k8s_subnet_cidrs
   public_subnet_cidrs   = var.public_subnet_cidrs
-  availability_zones    = var.availability_zones
   cluster_name          = var.cluster_name
   tags                  = var.tags
 }
@@ -24,7 +23,6 @@ module "eks" {
   vpc_id             = module.vpc.vpc_id
   k8s_subnet_ids     = module.vpc.k8s_subnet_ids
   cluster_name       = var.cluster_name
-  availability_zones = var.availability_zones
   cluster_sg_id      = module.security_groups.eks_cluster_sg_id
   node_sg_id         = module.security_groups.eks_node_sg_id
   tags               = var.tags

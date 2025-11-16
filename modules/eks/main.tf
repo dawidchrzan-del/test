@@ -63,7 +63,7 @@ resource "aws_eks_cluster" "main" {
   role_arn = aws_iam_role.eks_cluster.arn
 
   vpc_config {
-    subnet_ids = var.k8s_subnet_ids
+    subnet_ids = values(var.k8s_subnet_ids)
     cluster_security_group_id = var.cluster_sg_id
   }
 
@@ -87,7 +87,7 @@ data "tls_certificate" "eks" {
 
 # EKS Node Group per AZ
 resource "aws_eks_node_group" "main" {
-  for_each = zipmap(var.availability_zones, var.k8s_subnet_ids)
+  for_each = var.k8s_subnet_ids
 
   cluster_name    = aws_eks_cluster.main.name
   node_group_name = "${var.cluster_name}-nodegroup-${each.key}"

@@ -5,27 +5,30 @@ variable "vpc_cidr" {
 }
 
 variable "database_subnet_cidrs" {
-  description = "CIDR blocks for database subnets"
-  type        = list(string)
-  default     = ["10.198.1.0/24", "10.198.2.0/24"]
+  description = "A map of CIDR blocks for database subnets, keyed by Availability Zone"
+  type        = map(string)
+  default = {
+    "us-east-1a" = "10.198.1.0/24"
+    "us-east-1b" = "10.198.2.0/24"
+  }
 }
 
 variable "k8s_subnet_cidrs" {
-  description = "CIDR blocks for k8s subnets"
-  type        = list(string)
-  default     = ["10.198.3.0/24", "10.198.4.0/24"]
+  description = "A map of CIDR blocks for k8s subnets, keyed by Availability Zone"
+  type        = map(string)
+  default = {
+    "us-east-1a" = "10.198.3.0/24"
+    "us-east-1b" = "10.198.4.0/24"
+  }
 }
 
 variable "public_subnet_cidrs" {
-  description = "CIDR blocks for public subnets"
-  type        = list(string)
-  default     = ["10.198.5.0/24", "10.198.6.0/24"]
-}
-
-variable "availability_zones" {
-  description = "List of availability zones for the subnets"
-  type        = list(string)
-  default     = ["us-east-1a", "us-east-1b"]
+  description = "A map of CIDR blocks for public subnets, keyed by Availability Zone"
+  type        = map(string)
+  default = {
+    "us-east-1a" = "10.198.5.0/24"
+    "us-east-1b" = "10.198.6.0/24"
+  }
 }
 
 variable "cluster_name" {

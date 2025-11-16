@@ -4,23 +4,18 @@ variable "vpc_cidr" {
 }
 
 variable "database_subnet_cidrs" {
-  description = "CIDR blocks for database subnets"
-  type        = list(string)
+  description = "A map of CIDR blocks for database subnets, keyed by Availability Zone"
+  type        = map(string)
 }
 
 variable "k8s_subnet_cidrs" {
-  description = "CIDR blocks for k8s subnets"
-  type        = list(string)
+  description = "A map of CIDR blocks for k8s subnets, keyed by Availability Zone"
+  type        = map(string)
 }
 
 variable "public_subnet_cidrs" {
-  description = "CIDR blocks for public subnets"
-  type        = list(string)
-}
-
-variable "availability_zones" {
-  description = "List of availability zones for the subnets"
-  type        = list(string)
+  description = "A map of CIDR blocks for public subnets, keyed by Availability Zone"
+  type        = map(string)
 }
 
 variable "cluster_name" {
