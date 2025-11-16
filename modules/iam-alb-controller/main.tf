@@ -10,7 +10,7 @@ data "aws_iam_policy_document" "assume_role_policy" {
 
     condition {
       test     = "StringEquals"
-      variable = "${replace(var.oidc_provider_arn, "oidc-provider/", "oidc-provider/oidc.eks.us-east-1.amazonaws.com/id/")}:sub"
+      variable = "${replace(var.oidc_provider_arn, "oidc-provider/", "oidc-provider/oidc.eks.${var.aws_region}.amazonaws.com/id/")}:sub"
       values   = ["system:serviceaccount:kube-system:aws-load-balancer-controller"]
     }
   }
@@ -19,12 +19,14 @@ data "aws_iam_policy_document" "assume_role_policy" {
 resource "aws_iam_role" "alb_controller" {
   name               = "${var.cluster_name}-alb-controller"
   assume_role_policy = data.aws_iam_policy_document.assume_role_policy.json
+  tags               = var.tags
 }
 
 resource "aws_iam_policy" "alb_controller" {
   name        = "${var.cluster_name}-alb-controller-policy"
   description = "Policy for the AWS Load Balancer Controller"
   policy      = data.http.alb_controller_policy.response_body
+  tags        = var.tags
 }
 
 resource "aws_iam_role_policy_attachment" "alb_controller" {

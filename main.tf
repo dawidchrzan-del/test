@@ -7,6 +7,15 @@ module "vpc" {
   public_subnet_cidrs   = var.public_subnet_cidrs
   availability_zones    = var.availability_zones
   cluster_name          = var.cluster_name
+  tags                  = var.tags
+}
+
+module "security_groups" {
+  source = "./modules/security-groups"
+
+  vpc_id       = module.vpc.vpc_id
+  cluster_name = var.cluster_name
+  tags         = var.tags
 }
 
 module "eks" {
@@ -16,8 +25,9 @@ module "eks" {
   k8s_subnet_ids     = module.vpc.k8s_subnet_ids
   cluster_name       = var.cluster_name
   availability_zones = var.availability_zones
-  cluster_sg_id      = module.vpc.eks_cluster_sg_id
-  node_sg_id         = module.vpc.eks_node_sg_id
+  cluster_sg_id      = module.security_groups.eks_cluster_sg_id
+  node_sg_id         = module.security_groups.eks_node_sg_id
+  tags               = var.tags
 }
 
 module "iam_alb_controller" {
@@ -26,12 +36,15 @@ module "iam_alb_controller" {
   cluster_name      = var.cluster_name
   oidc_provider_arn = module.eks.oidc_provider_arn
   vpc_id            = module.vpc.vpc_id
+  aws_region        = var.aws_region
+  tags              = var.tags
 }
 
 module "acm" {
   source = "./modules/acm"
 
   domain_name = var.domain_name
+  tags        = var.tags
 }
 
 resource "aws_acm_certificate_validation" "main" {
