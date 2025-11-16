@@ -1,5 +1,11 @@
+locals {
+  public_subnets   = zipmap(var.availability_zones, var.public_subnet_cidrs)
+  k8s_subnets      = zipmap(var.availability_zones, var.k8s_subnet_cidrs)
+  database_subnets = zipmap(var.availability_zones, var.database_subnet_cidrs)
+}
+
 resource "aws_vpc" "main" {
-  cidr_block = var.vpc_cidr
+  cidr_block           = var.vpc_cidr
   enable_dns_support   = true
   enable_dns_hostnames = true
   tags = merge(var.tags, {
@@ -8,34 +14,34 @@ resource "aws_vpc" "main" {
 }
 
 resource "aws_subnet" "database" {
-  count             = length(var.database_subnet_cidrs)
+  for_each          = local.database_subnets
   vpc_id            = aws_vpc.main.id
-  cidr_block        = var.database_subnet_cidrs[count.index]
-  availability_zone = var.availability_zones[count.index]
+  cidr_block        = each.value
+  availability_zone = each.key
   tags = merge(var.tags, {
-    Name = "database-subnet-${var.availability_zones[count.index]}"
+    Name = "database-subnet-${each.key}"
   })
 }
 
 resource "aws_subnet" "k8s" {
-  count             = length(var.k8s_subnet_cidrs)
+  for_each          = local.k8s_subnets
   vpc_id            = aws_vpc.main.id
-  cidr_block        = var.k8s_subnet_cidrs[count.index]
-  availability_zone = var.availability_zones[count.index]
+  cidr_block        = each.value
+  availability_zone = each.key
   tags = merge(var.tags, {
-    Name                                  = "k8s-subnet-${var.availability_zones[count.index]}"
+    Name                                  = "k8s-subnet-${each.key}"
     "kubernetes.io/cluster/${var.cluster_name}" = "shared"
   })
 }
 
 resource "aws_subnet" "public" {
-  count                   = length(var.public_subnet_cidrs)
+  for_each                = local.public_subnets
   vpc_id                  = aws_vpc.main.id
-  cidr_block              = var.public_subnet_cidrs[count.index]
-  availability_zone       = var.availability_zones[count.index]
+  cidr_block              = each.value
+  availability_zone       = each.key
   map_public_ip_on_launch = true
   tags = merge(var.tags, {
-    Name = "public-subnet-${var.availability_zones[count.index]}"
+    Name = "public-subnet-${each.key}"
   })
 }
 
@@ -60,50 +66,50 @@ resource "aws_route_table" "public" {
 }
 
 resource "aws_route_table_association" "public" {
-  count          = length(var.public_subnet_cidrs)
-  subnet_id      = aws_subnet.public[count.index].id
+  for_each       = aws_subnet.public
+  subnet_id      = each.value.id
   route_table_id = aws_route_table.public.id
 }
 
 resource "aws_eip" "nat" {
-  count      = length(var.availability_zones)
+  for_each   = toset(var.availability_zones)
   depends_on = [aws_internet_gateway.main]
   tags = merge(var.tags, {
-    Name = "nat-eip-${var.availability_zones[count.index]}"
+    Name = "nat-eip-${each.key}"
   })
 }
 
 resource "aws_nat_gateway" "main" {
-  count         = length(var.availability_zones)
-  allocation_id = aws_eip.nat[count.index].id
-  subnet_id     = aws_subnet.public[count.index].id
+  for_each      = toset(var.availability_zones)
+  allocation_id = aws_eip.nat[each.key].id
+  subnet_id     = aws_subnet.public[each.key].id
   tags = merge(var.tags, {
-    Name = "nat-gateway-${var.availability_zones[count.index]}"
+    Name = "nat-gateway-${each.key}"
   })
 }
 
 resource "aws_route_table" "private" {
-  count  = length(var.availability_zones)
-  vpc_id = aws_vpc.main.id
+  for_each = toset(var.availability_zones)
+  vpc_id   = aws_vpc.main.id
 
   route {
     cidr_block     = "0.0.0.0/0"
-    nat_gateway_id = aws_nat_gateway.main[count.index].id
+    nat_gateway_id = aws_nat_gateway.main[each.key].id
   }
 
   tags = merge(var.tags, {
-    Name = "private-rt-${var.availability_zones[count.index]}"
+    Name = "private-rt-${each.key}"
   })
 }
 
 resource "aws_route_table_association" "k8s" {
-  count          = length(var.k8s_subnet_cidrs)
-  subnet_id      = aws_subnet.k8s[count.index].id
-  route_table_id = aws_route_table.private[count.index].id
+  for_each       = aws_subnet.k8s
+  subnet_id      = each.value.id
+  route_table_id = aws_route_table.private[each.key].id
 }
 
 resource "aws_route_table_association" "database" {
-  count          = length(var.database_subnet_cidrs)
-  subnet_id      = aws_subnet.database[count.index].id
-  route_table_id = aws_route_table.private[count.index].id
+  for_each       = aws_subnet.database
+  subnet_id      = each.value.id
+  route_table_id = aws_route_table.private[each.key].id
 }
