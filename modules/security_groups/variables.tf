@@ -1,10 +1,15 @@
+variable "name" {
+  description = "Name to be used on all the resources as identifier"
+  type        = string
+}
+
 variable "vpc_id" {
   description = "The ID of the VPC"
   type        = string
 }
 
-variable "cluster_name" {
-  description = "The name of the EKS cluster, used for tagging resources"
+variable "vpc_cidr" {
+  description = "The CIDR block of the VPC"
   type        = string
 }
 

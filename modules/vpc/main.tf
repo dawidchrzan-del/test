@@ -2,47 +2,44 @@ resource "aws_vpc" "main" {
   cidr_block           = var.vpc_cidr
   enable_dns_support   = true
   enable_dns_hostnames = true
-  tags = merge(var.tags, {
-    Name = "${var.cluster_name}-vpc"
-  })
-}
 
-resource "aws_subnet" "database" {
-  for_each          = var.database_subnet_cidrs
-  vpc_id            = aws_vpc.main.id
-  cidr_block        = each.value
-  availability_zone = each.key
   tags = merge(var.tags, {
-    Name = "database-subnet-${each.key}"
-  })
-}
-
-resource "aws_subnet" "k8s" {
-  for_each          = var.k8s_subnet_cidrs
-  vpc_id            = aws_vpc.main.id
-  cidr_block        = each.value
-  availability_zone = each.key
-  tags = merge(var.tags, {
-    Name                                  = "k8s-subnet-${each.key}"
-    "kubernetes.io/cluster/${var.cluster_name}" = "shared"
+    Name = var.name
   })
 }
 
 resource "aws_subnet" "public" {
-  for_each                = var.public_subnet_cidrs
+  for_each                = var.public_subnets
   vpc_id                  = aws_vpc.main.id
   cidr_block              = each.value
   availability_zone       = each.key
   map_public_ip_on_launch = true
+
   tags = merge(var.tags, {
-    Name = "public-subnet-${each.key}"
+    Name                               = "${var.name}-public-${each.key}"
+    "kubernetes.io/role/elb"           = "1"
+    "kubernetes.io/cluster/${var.name}" = "shared"
+  })
+}
+
+resource "aws_subnet" "private" {
+  for_each          = var.private_subnets
+  vpc_id            = aws_vpc.main.id
+  cidr_block        = each.value
+  availability_zone = each.key
+
+  tags = merge(var.tags, {
+    Name                                = "${var.name}-private-${each.key}"
+    "kubernetes.io/role/internal-elb"   = "1"
+    "kubernetes.io/cluster/${var.name}" = "shared"
   })
 }
 
 resource "aws_internet_gateway" "main" {
   vpc_id = aws_vpc.main.id
+
   tags = merge(var.tags, {
-    Name = "${var.cluster_name}-igw"
+    Name = "${var.name}-igw"
   })
 }
 
@@ -55,7 +52,7 @@ resource "aws_route_table" "public" {
   }
 
   tags = merge(var.tags, {
-    Name = "${var.cluster_name}-public-rt"
+    Name = "${var.name}-public-rt"
   })
 }
 
@@ -66,24 +63,26 @@ resource "aws_route_table_association" "public" {
 }
 
 resource "aws_eip" "nat" {
-  for_each   = var.public_subnet_cidrs
+  for_each   = var.public_subnets
   depends_on = [aws_internet_gateway.main]
+
   tags = merge(var.tags, {
-    Name = "nat-eip-${each.key}"
+    Name = "${var.name}-nat-eip-${each.key}"
   })
 }
 
 resource "aws_nat_gateway" "main" {
-  for_each      = var.public_subnet_cidrs
+  for_each      = var.public_subnets
   allocation_id = aws_eip.nat[each.key].id
   subnet_id     = aws_subnet.public[each.key].id
+
   tags = merge(var.tags, {
-    Name = "nat-gateway-${each.key}"
+    Name = "${var.name}-nat-${each.key}"
   })
 }
 
 resource "aws_route_table" "private" {
-  for_each = var.public_subnet_cidrs
+  for_each = var.private_subnets
   vpc_id   = aws_vpc.main.id
 
   route {
@@ -92,18 +91,12 @@ resource "aws_route_table" "private" {
   }
 
   tags = merge(var.tags, {
-    Name = "private-rt-${each.key}"
+    Name = "${var.name}-private-rt-${each.key}"
   })
 }
 
-resource "aws_route_table_association" "k8s" {
-  for_each       = aws_subnet.k8s
-  subnet_id      = each.value.id
-  route_table_id = aws_route_table.private[each.key].id
-}
-
-resource "aws_route_table_association" "database" {
-  for_each       = aws_subnet.database
+resource "aws_route_table_association" "private" {
+  for_each       = aws_subnet.private
   subnet_id      = each.value.id
   route_table_id = aws_route_table.private[each.key].id
 }
